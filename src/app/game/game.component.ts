@@ -75,6 +75,7 @@ export class GameComponent implements OnInit, OnDestroy {
   private transitionEffect = false;
   private ascensionStarted = false;
   private backgroundGradient = 0;
+  showRestartPrompt = false;
 
   private platforms: Platform[] = [];
 
@@ -179,6 +180,23 @@ export class GameComponent implements OnInit, OnDestroy {
     if (this.ascensionStarted) {
       this.updateAscension();
     }
+  }
+
+  restartGame(): void {
+    this.player.x = 100;
+    this.player.y = 900;
+    this.player.vx = 0;
+    this.player.vy = 0;
+    this.player.lifeStage = LifeStage.BIRTH;
+    this.player.age = 0;
+    this.player.color = '#ffb3ba';
+    this.player.texture = { emoji: '👶', size: 40, offsetX: 5, offsetY: 5 };
+    this.particles = [];
+    this.transitionEffect = false;
+    this.ascensionStarted = false;
+    this.backgroundGradient = 0;
+    this.showRestartPrompt = false;
+    this.generateCompletablePlatforms();
   }
 
   private isOnGround(): boolean {
