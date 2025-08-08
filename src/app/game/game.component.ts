@@ -9,6 +9,13 @@ interface Platform {
   type?: 'normal' | 'transition' | 'final';
 }
 
+interface CharacterTexture {
+  emoji: string;
+  size: number;
+  offsetX: number;
+  offsetY: number;
+}
+
 interface Particle {
   x: number;
   y: number;
@@ -53,60 +60,30 @@ export class GameComponent implements OnInit, OnDestroy {
     vy: 0,
     lifeStage: LifeStage.BIRTH,
     age: 0,
-    color: '#ffb3ba'
+    color: '#ffb3ba',
+    texture: { emoji: '👶', size: 40, offsetX: 5, offsetY: 5 }
   };
 
   private readonly gravity = 0.5;
   private readonly friction = 0.8;
   private readonly width = 1080;
   private readonly height = 1080;
+  private readonly jumpHeight = 14;
+  private readonly maxJumpDistance = 200;
 
   private particles: Particle[] = [];
   private transitionEffect = false;
   private ascensionStarted = false;
   private backgroundGradient = 0;
 
-  private platforms: Platform[] = [
-    // Birth/Ground level (0-150px height)
-    { x: 0, y: 1030, width: 1080, height: 50, color: '#8fbc8f', type: 'normal' },
-    { x: 200, y: 950, width: 150, height: 20, color: '#98fb98', type: 'normal' },
-    
-    // Childhood (150-300px height)
-    { x: 50, y: 850, width: 120, height: 20, color: '#ffb347', type: 'transition' },
-    { x: 400, y: 780, width: 180, height: 20, color: '#ffb347', type: 'normal' },
-    { x: 800, y: 730, width: 120, height: 20, color: '#ffb347', type: 'normal' },
-    
-    // Adolescence (300-450px height)
-    { x: 100, y: 650, width: 140, height: 20, color: '#87ceeb', type: 'transition' },
-    { x: 500, y: 580, width: 160, height: 20, color: '#87ceeb', type: 'normal' },
-    { x: 750, y: 520, width: 140, height: 20, color: '#87ceeb', type: 'normal' },
-    
-    // Young Adult (450-600px height)
-    { x: 80, y: 450, width: 120, height: 20, color: '#dda0dd', type: 'transition' },
-    { x: 350, y: 380, width: 180, height: 20, color: '#dda0dd', type: 'normal' },
-    { x: 650, y: 320, width: 150, height: 20, color: '#dda0dd', type: 'normal' },
-    
-    // Adult (600-750px height)
-    { x: 150, y: 250, width: 140, height: 20, color: '#f0e68c', type: 'transition' },
-    { x: 450, y: 180, width: 200, height: 20, color: '#f0e68c', type: 'normal' },
-    { x: 800, y: 120, width: 120, height: 20, color: '#f0e68c', type: 'normal' },
-    
-    // Middle Age (750-900px height)  
-    { x: 200, y: 80, width: 160, height: 20, color: '#cd853f', type: 'transition' },
-    { x: 500, y: 40, width: 180, height: 20, color: '#cd853f', type: 'normal' },
-    
-    // Elderly (900-1050px height)
-    { x: 300, y: 20, width: 120, height: 20, color: '#d3d3d3', type: 'transition' },
-    
-    // Final Ascension Platform
-    { x: 450, y: 10, width: 180, height: 10, color: '#ffd700', type: 'final' }
-  ];
+  private platforms: Platform[] = [];
 
   ngOnInit(): void {
     const canvas = this.canvasRef.nativeElement;
     this.ctx = canvas.getContext('2d')!;
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('keyup', this.onKeyUp);
+    this.generateCompletablePlatforms();
     this.loop();
   }
 
@@ -154,7 +131,7 @@ export class GameComponent implements OnInit, OnDestroy {
       this.player.vx += 0.5;
     }
     if (this.keys.up && this.isOnGround()) {
-      this.player.vy = -12;
+      this.player.vy = -this.jumpHeight;
     }
 
     this.player.vy += this.gravity;
@@ -190,6 +167,11 @@ export class GameComponent implements OnInit, OnDestroy {
       this.player.x = this.width - this.player.width;
       this.player.vx = 0;
     }
+    
+    if (this.player.y > this.height + 100) {
+      this.showRestartPrompt = true;
+      setTimeout(() => this.restartGame(), 1000);
+    }
 
     this.updateLifeStage();
     this.updateParticles();
@@ -214,30 +196,37 @@ export class GameComponent implements OnInit, OnDestroy {
     if (height < 150) {
       this.player.lifeStage = LifeStage.BIRTH;
       this.player.color = '#ffb3ba';
+      this.player.texture = { emoji: '👶', size: 40, offsetX: 5, offsetY: 5 };
       this.backgroundGradient = 0;
     } else if (height < 300) {
       this.player.lifeStage = LifeStage.CHILDHOOD;
       this.player.color = '#ffdfba';
+      this.player.texture = { emoji: '🧒', size: 42, offsetX: 4, offsetY: 4 };
       this.backgroundGradient = 0.1;
     } else if (height < 450) {
       this.player.lifeStage = LifeStage.ADOLESCENCE;
       this.player.color = '#ffffba';
+      this.player.texture = { emoji: '🧑', size: 44, offsetX: 3, offsetY: 3 };
       this.backgroundGradient = 0.2;
     } else if (height < 600) {
       this.player.lifeStage = LifeStage.YOUNG_ADULT;
       this.player.color = '#baffba';
+      this.player.texture = { emoji: '🙋', size: 46, offsetX: 2, offsetY: 2 };
       this.backgroundGradient = 0.3;
     } else if (height < 750) {
       this.player.lifeStage = LifeStage.ADULT;
       this.player.color = '#baffc9';
+      this.player.texture = { emoji: '👨', size: 48, offsetX: 1, offsetY: 1 };
       this.backgroundGradient = 0.4;
     } else if (height < 900) {
       this.player.lifeStage = LifeStage.MIDDLE_AGE;
       this.player.color = '#bae1ff';
+      this.player.texture = { emoji: '👨‍🦲', size: 48, offsetX: 1, offsetY: 1 };
       this.backgroundGradient = 0.5;
     } else if (height < 1050) {
       this.player.lifeStage = LifeStage.ELDERLY;
       this.player.color = '#c9baff';
+      this.player.texture = { emoji: '👴', size: 48, offsetX: 1, offsetY: 1 };
       this.backgroundGradient = 0.6;
     }
     
@@ -289,10 +278,89 @@ export class GameComponent implements OnInit, OnDestroy {
     }
   }
 
+  private generateCompletablePlatforms(): void {
+    this.platforms = [];
+    
+    const levels = [
+      { name: 'Birth', yRange: [950, 1030], color: '#8fbc8f' },
+      { name: 'Childhood', yRange: [780, 900], color: '#ffb347' },
+      { name: 'Adolescence', yRange: [630, 750], color: '#87ceeb' },
+      { name: 'Young Adult', yRange: [480, 600], color: '#dda0dd' },
+      { name: 'Adult', yRange: [330, 450], color: '#f0e68c' },
+      { name: 'Middle Age', yRange: [180, 300], color: '#cd853f' },
+      { name: 'Elderly', yRange: [80, 150], color: '#d3d3d3' },
+      { name: 'Ascension', yRange: [10, 60], color: '#ffd700' }
+    ];
+
+    this.platforms.push({ x: 0, y: 1030, width: 1080, height: 50, color: '#8fbc8f', type: 'normal' });
+    
+    let lastPlatform = { x: 100, y: 1030, width: 50 };
+    
+    for (let levelIndex = 0; levelIndex < levels.length; levelIndex++) {
+      const level = levels[levelIndex];
+      const isTransitionLevel = levelIndex > 0;
+      const isLastLevel = levelIndex === levels.length - 1;
+      
+      const platformCount = isLastLevel ? 1 : Math.floor(Math.random() * 3) + 2;
+      const levelPlatforms: Platform[] = [];
+      
+      for (let i = 0; i < platformCount; i++) {
+        let attempts = 0;
+        let validPlatform: Platform | null = null;
+        
+        while (attempts < 50 && !validPlatform) {
+          const platform: Platform = {
+            x: Math.random() * (this.width - 200) + 50,
+            y: level.yRange[1] + Math.random() * (level.yRange[0] - level.yRange[1]),
+            width: Math.random() * 100 + 120,
+            height: 20,
+            color: level.color,
+            type: isLastLevel ? 'final' : (isTransitionLevel && i === 0 ? 'transition' : 'normal')
+          };
+          
+          if (this.isPlatformReachable(platform, lastPlatform, levelPlatforms)) {
+            validPlatform = platform;
+          }
+          attempts++;
+        }
+        
+        if (validPlatform) {
+          levelPlatforms.push(validPlatform);
+          if (i === platformCount - 1) {
+            lastPlatform = { x: validPlatform.x, y: validPlatform.y, width: validPlatform.width };
+          }
+        }
+      }
+      
+      this.platforms.push(...levelPlatforms);
+    }
+  }
+  
+  private isPlatformReachable(newPlatform: Platform, lastPlatform: any, levelPlatforms: Platform[]): boolean {
+    const allReferencePlatforms = [...this.platforms, ...levelPlatforms];
+    
+    for (const refPlatform of allReferencePlatforms) {
+      const horizontalDistance = Math.abs(newPlatform.x + newPlatform.width/2 - (refPlatform.x + refPlatform.width/2));
+      const verticalDistance = Math.abs(newPlatform.y - refPlatform.y);
+      
+      if (horizontalDistance <= this.maxJumpDistance && verticalDistance <= 150) {
+        const canReachHorizontally = horizontalDistance <= this.maxJumpDistance;
+        const canReachVertically = newPlatform.y <= refPlatform.y || verticalDistance <= 150;
+        
+        if (canReachHorizontally && canReachVertically) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  }
+
   private startAscension(): void {
     this.ascensionStarted = true;
     this.player.lifeStage = LifeStage.ASCENSION;
     this.player.color = '#ffd700';
+    this.player.texture = { emoji: '😇', size: 50, offsetX: 0, offsetY: 0 };
     
     for (let i = 0; i < 50; i++) {
       this.particles.push({
@@ -362,10 +430,12 @@ export class GameComponent implements OnInit, OnDestroy {
     this.ctx.fillStyle = this.player.color;
     this.ctx.fillRect(this.player.x, this.player.y, this.player.width, this.player.height);
     
-    if (this.player.lifeStage === LifeStage.ELDERLY) {
-      this.ctx.fillStyle = '#fff';
-      this.ctx.fillRect(this.player.x + 10, this.player.y + 5, 30, 5);
-    }
+    this.ctx.font = `${this.player.texture.size}px Arial`;
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'middle';
+    const centerX = this.player.x + this.player.width / 2 + this.player.texture.offsetX;
+    const centerY = this.player.y + this.player.height / 2 + this.player.texture.offsetY;
+    this.ctx.fillText(this.player.texture.emoji, centerX, centerY);
     
     this.ctx.restore();
   }
